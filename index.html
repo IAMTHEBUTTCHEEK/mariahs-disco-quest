@@ -2084,10 +2084,12 @@ Scenes.add("L1", (()=>{
       vy += dir*(air?420:980)*dt;
       vy *= (1-4.6*dt);
       y = clamp(y+vy*dt, WTOP, WBOT);
-      // boost
+      // boost — punchy: fast surge + engine note on press
       const boosting = Input.held("action") && !air;
-      const target = bonkT>0 ? 120 : boosting? 365 : 235;
-      speed = lerp(speed, target, (boosting?2.6:1.6)*dt);
+      if(boosting && !this._wasBoost){ Audio.sfx.whooshJump(); Game.shake(1.5,0.08); }
+      this._wasBoost=boosting;
+      const target = bonkT>0 ? 120 : boosting? 400 : 235;
+      speed = lerp(speed, target, (boosting?4.5:1.6)*dt);
       if(boosting){
         G.style += dt*6;
         const cols=[C.pink,C.gold,C.mint,C.lake,C.lav];
@@ -2334,19 +2336,42 @@ Scenes.add("L1", (()=>{
       }
       // player: jet ski + Mariah
       const py=y-z;
+      const boostNow = Input.held("action") && z===0 && !outro;
+      // speed streaks while boosting (visible even with reduced motion on)
+      if(boostNow && speed>300){
+        c.strokeStyle="rgba(255,255,255,0.55)"; c.lineWidth=2.5; c.lineCap="round";
+        for(let i2=0;i2<4;i2++){
+          const sy2=py-8+i2*7+Math.sin(t*30+i2*2)*2;
+          const len=30+((t*900+i2*53)%40);
+          c.beginPath(); c.moveTo(PX-36-i2*9,sy2); c.lineTo(PX-36-i2*9-len,sy2); c.stroke();
+        }
+      }
       c.fillStyle="rgba(30,42,68,0.2)";
       c.beginPath(); c.ellipse(PX,y+13,26*(1-z/400),6*(1-z/400),0,0,TAU); c.fill();
       c.save(); c.translate(PX,py);
       const sq=1-squash*0.16;
       c.scale(1/Math.sqrt(sq),sq);
-      c.rotate(clamp(vy*0.0011,-0.3,0.3) - (z>0? clamp(vz*0.0009,-0.25,0.25):0));
+      c.rotate(clamp(vy*0.0011,-0.3,0.3) - (z>0? clamp(vz*0.0009,-0.25,0.25):0) - (boostNow?0.07:0));
       if(bonkT>0.4) c.rotate(Math.sin(t*40)*0.05);
+      // exhaust flame when boosting
+      if(boostNow && speed>290){
+        const fl=1+Math.sin(t*42)*0.3;
+        c.fillStyle=C.gold;
+        c.beginPath(); c.moveTo(-30,2); c.lineTo(-30-16*fl,5); c.lineTo(-30,9); c.closePath(); c.fill();
+        c.fillStyle="#fff";
+        c.beginPath(); c.moveTo(-30,3.5); c.lineTo(-30-8*fl,5.5); c.lineTo(-30,7.5); c.closePath(); c.fill();
+      }
       // hull
       c.fillStyle=C.pink; Draw.rr(c,-30,-4,62,16,8); c.fill();
       c.fillStyle="#fff";  Draw.rr(c,-30,-4,62,7,4); c.fill();
       c.fillStyle="#e8418f"; Draw.rr(c,8,-14,16,12,5); c.fill(); // handlebars block
       Chars.mariah(c,-4,-2,0.92,{pose:"sit"});
       c.restore();
+      if(boostNow && speed>300){
+        c.globalAlpha=0.65+0.35*Math.sin(t*16);
+        Draw.txt(c,"BOOST!",PX,py-66,13,C.gold,{out:C.pink,ow:4});
+        c.globalAlpha=1;
+      }
       if(playerBub) Draw.bubble(c,PX,py-58,playerBub.text);
       // world bubbles
       for(const b of bubbles){
